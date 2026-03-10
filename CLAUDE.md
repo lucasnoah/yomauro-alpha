@@ -56,6 +56,25 @@ Every Go package under `internal/` has a **boundary file** named `<package>.go` 
 - **New packages** must create their boundary file before any implementation files.
 - **Exemption:** Code-generated packages (e.g., sqlc output) use their generator's config as the contract, not a boundary file.
 
+## Pipeline-Critical Commands
+
+This repo is automated by TaintFactory. The following commands are called by the pipeline during setup and checks. **Never rename, remove, or break these.**
+
+| Command | Used By | Source |
+|---------|---------|--------|
+| `go mod download` | pipeline setup | go toolchain |
+| `cd web && npm install` | pipeline setup | package.json |
+| `make -f .factory/Makefile migrate-up` | database migration | `.factory/Makefile` |
+| `go vet ./...` | lint-go check | go toolchain |
+| `go test -p 1 ./...` | test-go check | go toolchain |
+| `cd web && npm run lint` | lint-web check | `web/package.json` scripts.lint |
+| `cd web && npm test` | test-web check | `web/package.json` scripts.test |
+
+**Rules:**
+- The `.factory/` directory is owned by the pipeline. Do not modify files in it.
+- The `web/package.json` must always have `lint`, `test`, and `dev` scripts.
+- The root `Makefile` is yours to change freely — pipeline commands do not depend on it.
+
 ## Active Technologies
 - Go 1.25+ (backend), TypeScript 5 / Node.js 20+ (frontend) + chi v5 (router), pgx v5 (PostgreSQL driver), sqlc (query codegen), Next.js 14 (App Router), Tailwind CSS 3.4 (001-starter-template)
 - PostgreSQL (users, sessions tables) (001-starter-template)

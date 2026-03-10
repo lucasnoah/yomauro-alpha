@@ -10,7 +10,7 @@ pipeline:
     test_name: yomauro_test
     user: yomauro
     password: yomauro
-    migrate: "make migrate-up"
+    migrate: "make -f .factory/Makefile migrate-up"
 
   setup:
     - "go mod download"
