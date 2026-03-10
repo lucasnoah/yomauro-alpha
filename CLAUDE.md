@@ -1,6 +1,17 @@
-# sharedtaint
+# yomauro
 
 Shared tooling, conventions, and patterns for Claude Code projects.
+
+## Go Conventions
+
+- All packages live under `internal/` (unexported to external modules)
+- `repository/` uses sqlc-generated types; raw queries in `internal/repository/queries/`
+- Background jobs use River (PostgreSQL-backed queue); job definitions in `internal/job/`
+- Settings loaded once at startup from environment variables via `internal/config`
+
+## Configuration
+
+Settings via `config/.env` (primary), `.env` (fallback). Go `internal/config` package reads environment variables. See `.env.example` for all variables.
 
 ## Database Migration Philosophy
 
