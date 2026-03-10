@@ -55,3 +55,10 @@ Every Go package under `internal/` has a **boundary file** named `<package>.go` 
 - **Sub-packages** get their own boundary file (e.g., `integrations/opentable/opentable.go`).
 - **New packages** must create their boundary file before any implementation files.
 - **Exemption:** Code-generated packages (e.g., sqlc output) use their generator's config as the contract, not a boundary file.
+
+## Active Technologies
+- Go 1.25+ (backend), TypeScript 5 / Node.js 20+ (frontend) + chi v5 (router), pgx v5 (PostgreSQL driver), sqlc (query codegen), Next.js 14 (App Router), Tailwind CSS 3.4 (001-starter-template)
+- PostgreSQL (users, sessions tables) (001-starter-template)
+
+## Recent Changes
+- 001-starter-template: Added Go 1.25+ (backend), TypeScript 5 / Node.js 20+ (frontend) + chi v5 (router), pgx v5 (PostgreSQL driver), sqlc (query codegen), Next.js 14 (App Router), Tailwind CSS 3.4
