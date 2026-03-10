@@ -1,56 +1,52 @@
-# sharedtaint
+# yomauro
 
-Shared tooling, conventions, and patterns extracted from production repos.
+Go + Next.js starter template with session-based auth, login page, sidebar shell, and dashboard.
 
-## Dependencies
+## Automated Pipeline (TaintFactory)
 
-| Dependency | Required By | Install |
-|------------|-------------|---------|
-| [spec-kit](https://github.com/github/spec-kit) | `feature-request` skill | Follow spec-kit's setup instructions to create `.specify/` infrastructure |
+This repo uses [TaintFactory](https://taintfactory.itslucastime.com) to automatically implement GitHub issues.
 
-## Contents
+### How it works
 
-### Claude Code Skills
+1. Create a GitHub issue describing the work
+2. Add the `implementation` label to the issue
+3. TaintFactory polls for labeled issues and picks them up automatically
+4. Each issue goes through a multi-stage pipeline:
+   - **implement** — a Claude agent writes the code in an isolated worktree
+   - **review** — a second agent reviews the changes (code-only context)
+   - **qa** — a third agent runs full QA (code + issue context)
+   - **verify** — automated checks run (go vet, lint, tests)
+   - **merge** — squash-merges the PR to main
+5. If any stage fails checks, the pipeline loops back to `implement` for fixes
 
-#### Commands (`.claude/commands/`)
+### Dashboard
 
-| Skill | Description |
-|-------|-------------|
-| `bug` | End-to-end bug-fix workflow: brainstorm, file GitHub issue, engineer the fix, produce implementation plan |
-| `brainstorming` | Collaborative design exploration before any creative/implementation work. Returns control to caller when design is complete — does NOT auto-chain into downstream skills. |
-| `writing-plans` | Write bite-sized TDD implementation plans from specs or requirements |
-| `plan` | Surface architectural decisions, draw contracts, create implementation sub-issues |
+Monitor pipeline progress at:
 
-#### Skills (`.claude/skills/`)
+- **URL:** https://taintfactory.itslucastime.com
+- **Username:** `yomauro`
+- **Password:** `taintfactory2026`
 
-| Skill | Description |
-|-------|-------------|
-| `feature-request` | Full pipeline: brainstorm -> specify -> plan -> adversarial review -> tasks -> slices -> GitHub issues. **Requires spec-kit.** |
+### Labels
 
-### Templates (`docs/`)
+| Label | Purpose |
+|-------|---------|
+| `implementation` | Triggers the automated pipeline |
+| `feature` | Feature request (human-written, not auto-processed) |
 
-| Template | Description |
-|----------|-------------|
-| `implementation-issue-template.md` | Standard format for implementation sub-issues with data contracts, acceptance criteria, and scope boundaries |
-| `feature-request-template.md` | Standard format for feature issues: user intent, stories, requirements, affected surfaces |
+## Development
 
-### Prompts (`docs/prompts/`)
-
-| Prompt | Description |
-|--------|-------------|
-| `adversarial-plan-review.md` | 10-step adversarial review protocol for plan artifacts — used by `feature-request` Phase 3 |
-
-## Workflow Overview
-
+```bash
+make db            # Start PostgreSQL (docker-compose)
+make migrate-up    # Run migrations
+make dev-api       # Start Go API (port 8080)
+cd web && npm run dev  # Start Next.js (port 3000)
+make test          # Run all tests
 ```
-brainstorming → design doc (returns control to caller)
 
-feature-request (full pipeline, uses spec-kit)
-  brainstorm → specify → plan → adversarial review → tasks → slices → issues
+## Stack
 
-plan (lightweight decomposition)
-  feature issue → decisions → contracts → implementation issues
-
-bug (standalone pipeline)
-  brainstorm → issue → implementation engineering → writing-plans → finalize
-```
+- **Backend:** Go 1.25+, chi v5, pgx v5, sqlc
+- **Frontend:** Next.js 14 (App Router), Tailwind CSS 3.4, TypeScript 5
+- **Database:** PostgreSQL
+- **Testing:** go test (backend), vitest (frontend)
