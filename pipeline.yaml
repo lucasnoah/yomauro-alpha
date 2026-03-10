@@ -1,0 +1,130 @@
+pipeline:
+  name: yomauro
+  repo: github.com/lucasnoah/yomauro
+
+  max_fix_rounds: 2
+  fresh_session_after: 10
+
+  database:
+    name: yomauro
+    test_name: yomauro_test
+    user: yomauro
+    password: yomauro
+    migrate: "make migrate-up"
+
+  setup:
+    - "go mod download"
+    - "cd web && npm install"
+
+  defaults:
+    timeout: "45m"
+    flags: "--dangerously-skip-permissions"
+
+  vars:
+    env_setup: |
+      This is a 2-tier project: Go API + Next.js web.
+
+      ### PostgreSQL
+      - Start: `make db` (docker-compose, postgres:16-alpine on port 5433)
+      - URL: `postgres://yomauro:yomauro@localhost:5433/yomauro?sslmode=disable`
+      - Migrate: `make migrate-up`
+      - Connect: `psql "postgres://yomauro:yomauro@localhost:5433/yomauro?sslmode=disable"`
+
+      ### Schema & queries
+      - Migrations: `migrations/*.sql` (source of truth for table definitions)
+      - SQL queries: `internal/repository/queries/*.sql` (sqlc)
+      - Generated Go types: `internal/repository/sqlcgen/`
+
+      ### Running the app
+      - Go API: `make dev-api` (port 8080)
+      - Next.js: `cd web && npm run dev` (port 3000)
+      - All tests: `make test` (runs go test + web tests)
+
+      ### Frontend (Next.js 14, App Router)
+      - Source: `web/src/` directory
+      - Dev server: `cd web && npm run dev` (port 3000, proxies API to 8080)
+      - Install: `cd web && npm install`
+      - Tests: `cd web && npm test` (vitest)
+
+  checks:
+    lint-go:
+      command: "go vet ./..."
+      parser: generic
+      timeout: "2m"
+    lint-web:
+      command: "cd web && npm run lint"
+      parser: generic
+      timeout: "2m"
+    test-go:
+      command: "go test ./..."
+      parser: generic
+      timeout: "5m"
+    test-web:
+      command: "cd web && npm test"
+      parser: generic
+      timeout: "3m"
+
+  stages:
+    - id: implement
+      type: agent
+      checks_after:
+        - lint-go
+        - lint-web
+        - test-go
+        - test-web
+      on_fail: implement
+
+    - id: review
+      type: agent
+      model: claude-sonnet-4-6
+      context_mode: code_only
+      checks_after:
+        - lint-go
+        - lint-web
+        - test-go
+        - test-web
+      on_fail: implement
+
+    - id: qa
+      type: agent
+      model: claude-sonnet-4-6
+      context_mode: full
+      checks_after:
+        - lint-go
+        - lint-web
+        - test-go
+        - test-web
+      on_fail: implement
+
+    - id: verify
+      type: checks_only
+      checks:
+        - lint-go
+        - lint-web
+        - test-go
+        - test-web
+
+    - id: merge
+      type: merge
+      model: claude-sonnet-4-6
+      merge_strategy: squash
+      on_fail: agent-merge
+
+    - id: agent-merge
+      type: agent
+      model: claude-sonnet-4-6
+      prompt_template: agent-merge.md
+      context_mode: minimal
+      checks_after:
+        - lint-go
+        - test-go
+      max_fix_rounds: 1
+      on_fail: escalate
+
+    - id: contract-check
+      type: agent
+      model: claude-sonnet-4-6
+      prompt_template: contract-check.md
+      context_mode: minimal
+      skip_checks: true
+      on_fail: escalate
