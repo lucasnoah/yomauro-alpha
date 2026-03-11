@@ -55,8 +55,10 @@ func TestDrainerMiddleware_RejectsDuringDrain(t *testing.T) {
 func TestDrainWaitsForInflight(t *testing.T) {
 	d := middleware.NewDrainer()
 	release := make(chan struct{})
+	started := make(chan struct{})
 
 	h := d.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
 		<-release
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -71,8 +73,12 @@ func TestDrainWaitsForInflight(t *testing.T) {
 		h.ServeHTTP(rec, req)
 	}()
 
-	// Give the goroutine time to enter the handler.
-	time.Sleep(20 * time.Millisecond)
+	// Wait until the handler is actually running before draining.
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not start within 1s")
+	}
 
 	// Start draining.
 	drained := make(chan error, 1)
@@ -105,8 +111,10 @@ func TestDrainRespectsContextTimeout(t *testing.T) {
 	d := middleware.NewDrainer()
 	release := make(chan struct{})
 	defer close(release)
+	started := make(chan struct{})
 
 	h := d.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
 		<-release
 	}))
 
@@ -117,7 +125,12 @@ func TestDrainRespectsContextTimeout(t *testing.T) {
 		h.ServeHTTP(rec, req)
 	}()
 
-	time.Sleep(20 * time.Millisecond)
+	// Wait until the handler is actually running before draining.
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not start within 1s")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()

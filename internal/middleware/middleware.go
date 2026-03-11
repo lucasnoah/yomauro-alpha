@@ -26,6 +26,7 @@ type entry struct {
 // draining. During shutdown, it rejects new requests with HTTP 503 and
 // waits for in-flight requests to complete.
 type Drainer struct {
+	mu       sync.Mutex
 	wg       sync.WaitGroup
 	draining atomic.Bool
 }
