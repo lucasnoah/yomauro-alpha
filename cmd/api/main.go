@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lucasnoah/yomauro/internal/handler"
+	"github.com/lucasnoah/yomauro/internal/middleware"
 )
 
 func main() {
@@ -34,11 +35,12 @@ func main() {
 		addr = ":8080"
 	}
 
+	drainer := middleware.NewDrainer()
 	router := handler.NewRouter(pool)
 
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      router,
+		Handler:      drainer.Middleware(router),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -49,9 +51,17 @@ func main() {
 		signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 		<-sigCh
 
+		slog.Info("shutdown signal received")
+
 		shutdownCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
+		// Reject new requests and wait for in-flight requests to drain.
+		if err := drainer.Drain(shutdownCtx); err != nil {
+			slog.Error("drain error", "error", err)
+		}
+
+		// Close the HTTP listener and idle connections.
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			slog.Error("shutdown error", "error", err)
 		}

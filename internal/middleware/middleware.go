@@ -4,6 +4,7 @@ package middleware
 import (
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -19,6 +20,19 @@ type RateLimiter struct {
 
 type entry struct {
 	timestamps []time.Time
+}
+
+// Drainer tracks in-flight HTTP requests and supports graceful connection
+// draining. During shutdown, it rejects new requests with HTTP 503 and
+// waits for in-flight requests to complete.
+type Drainer struct {
+	wg       sync.WaitGroup
+	draining atomic.Bool
+}
+
+// NewDrainer creates a Drainer ready to track in-flight requests.
+func NewDrainer() *Drainer {
+	return &Drainer{}
 }
 
 // NewRateLimiter creates a RateLimiter that allows at most limit requests
