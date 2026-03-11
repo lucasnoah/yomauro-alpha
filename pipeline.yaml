@@ -1,6 +1,6 @@
 pipeline:
-  name: yomauro
-  repo: github.com/lucasnoah/yomauro
+  name: yomauro-alpha
+  repo: github.com/lucasnoah/yomauro-alpha
 
   max_fix_rounds: 2
   fresh_session_after: 10
