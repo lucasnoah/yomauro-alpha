@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 )
 
@@ -11,14 +12,18 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.db.Ping(r.Context()); err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"status": "unhealthy",
 			"error":  "database ping failed",
-		})
+		}); err != nil {
+			slog.Error("health: failed to write response", "error", err)
+		}
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"status": "ok",
-	})
+	}); err != nil {
+		slog.Error("health: failed to write response", "error", err)
+	}
 }
