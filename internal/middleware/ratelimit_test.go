@@ -186,3 +186,54 @@ func TestCleanup_KeepsActiveEntries(t *testing.T) {
 		t.Fatal("expected active entry to be kept")
 	}
 }
+
+func TestClientIP_XForwardedFor_Whitespace(t *testing.T) {
+	cases := []struct {
+		xff  string
+		want string
+	}{
+		{"203.0.113.50 , 70.41.3.18", "203.0.113.50"},   // trailing space before comma
+		{"  203.0.113.50, 70.41.3.18", "203.0.113.50"},  // leading space
+		{" 203.0.113.50 , 70.41.3.18", "203.0.113.50"},  // both
+		{"  203.0.113.50  ", "203.0.113.50"},             // single IP with surrounding spaces
+	}
+	for _, c := range cases {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("X-Forwarded-For", c.xff)
+		got := clientIP(req)
+		if got != c.want {
+			t.Errorf("XFF %q: got %q, want %q", c.xff, got, c.want)
+		}
+	}
+}
+
+// TestRateLimiter_XFFSpoofingBypass documents that X-Forwarded-For is
+// trusted without validation. A client behind no trusted proxy can set
+// arbitrary XFF values and bypass the rate limit. This is expected behavior
+// when deployed behind a trusted reverse proxy (which overwrites XFF), but
+// is a security gap when the service is directly internet-facing.
+func TestRateLimiter_XFFSpoofingBypass(t *testing.T) {
+	rl := NewRateLimiter(3, time.Minute)
+	handler := rl.Middleware(okHandler())
+
+	// Exhaust the limit using one fake XFF IP.
+	for range 3 {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil)
+		req.RemoteAddr = "10.0.0.1:1234"
+		req.Header.Set("X-Forwarded-For", "1.2.3.4")
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+	}
+
+	// Same RemoteAddr but different XFF value — bypasses the rate limit.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil)
+	req.RemoteAddr = "10.0.0.1:1234"
+	req.Header.Set("X-Forwarded-For", "5.6.7.8")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// This passes (200 OK) demonstrating the bypass is possible.
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected bypass to succeed, got %d", rr.Code)
+	}
+}

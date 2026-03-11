@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"strings"
 )
 
 // middleware is the implementation of the rate-limiting HTTP middleware.
@@ -83,10 +84,10 @@ func clientIP(r *http.Request) string {
 		// X-Forwarded-For may contain multiple IPs; use the first (client).
 		for i := 0; i < len(xff); i++ {
 			if xff[i] == ',' {
-				return xff[:i]
+				return strings.TrimSpace(xff[:i])
 			}
 		}
-		return xff
+		return strings.TrimSpace(xff)
 	}
 	// RemoteAddr is "IP:port"; strip the port.
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
