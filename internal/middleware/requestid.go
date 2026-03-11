@@ -9,11 +9,17 @@ import (
 
 const requestIDHeader = "X-Request-ID"
 
+// maxRequestIDLen is the maximum number of bytes accepted from an incoming
+// X-Request-ID header. Values longer than this are treated as absent and a
+// new ID is generated. 128 bytes accommodates UUID v4 (36), W3C trace-id
+// (55), AWS X-Ray (35), and other common formats with room to spare.
+const maxRequestIDLen = 128
+
 // requestIDMiddleware is the implementation of the request ID middleware.
 func requestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get(requestIDHeader)
-		if id == "" {
+		if id == "" || len(id) > maxRequestIDLen {
 			id = generateID()
 		}
 

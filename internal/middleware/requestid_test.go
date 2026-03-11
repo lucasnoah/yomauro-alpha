@@ -94,3 +94,33 @@ func TestGenerateID_Format(t *testing.T) {
 		}
 	}
 }
+
+func TestRequestID_OversizedIncomingIDIsReplaced(t *testing.T) {
+	oversize := make([]byte, maxRequestIDLen+1)
+	for i := range oversize {
+		oversize[i] = 'a'
+	}
+
+	var ctxID string
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctxID = RequestID(r.Context())
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := RequestIDMiddleware(inner)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Request-ID", string(oversize))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	respID := rr.Header().Get("X-Request-ID")
+	if respID == string(oversize) {
+		t.Fatal("oversized incoming X-Request-ID was propagated instead of replaced")
+	}
+	if !uuidPattern.MatchString(respID) {
+		t.Fatalf("replacement ID %q is not a valid UUID v4", respID)
+	}
+	if ctxID != respID {
+		t.Fatalf("context ID %q does not match response header %q", ctxID, respID)
+	}
+}
