@@ -2,11 +2,31 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
 )
+
+// requestIDKey is the context key for the request ID value.
+type requestIDKey struct{}
+
+// RequestID extracts the request ID from the context. Returns an empty
+// string if no request ID is present.
+func RequestID(ctx context.Context) string {
+	id, _ := ctx.Value(requestIDKey{}).(string)
+	return id
+}
+
+// RequestIDMiddleware returns an http.Handler middleware that assigns a
+// unique request ID to each request. If the incoming request carries an
+// X-Request-ID header, that value is reused; otherwise a new ID is
+// generated. The ID is stored in the request context and set on the
+// response as the X-Request-ID header.
+func RequestIDMiddleware(next http.Handler) http.Handler {
+	return requestIDMiddleware(next)
+}
 
 // RateLimiter tracks request counts per key within a sliding window
 // and rejects requests that exceed the configured limit.
