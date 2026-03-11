@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/lucasnoah/yomauro/internal/middleware"
 )
 
 // Pinger can check database connectivity.
@@ -23,6 +24,7 @@ func NewRouter(db Pinger) http.Handler {
 	h := &Handler{db: db}
 
 	r := chi.NewRouter()
+	r.Use(middleware.RequestIDMiddleware)
 	r.Get("/api/v1/health", h.Health)
 
 	return r

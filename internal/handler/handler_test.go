@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 
 	"github.com/lucasnoah/yomauro/internal/handler"
@@ -18,6 +19,8 @@ type mockPinger struct {
 func (m *mockPinger) Ping(_ context.Context) error {
 	return m.err
 }
+
+var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
 func TestHealth_OK(t *testing.T) {
 	router := handler.NewRouter(&mockPinger{})
@@ -39,6 +42,28 @@ func TestHealth_OK(t *testing.T) {
 	}
 	if body["status"] != "ok" {
 		t.Fatalf("expected status \"ok\", got %q", body["status"])
+	}
+
+	rid := rec.Header().Get("X-Request-ID")
+	if rid == "" {
+		t.Fatal("expected X-Request-ID response header to be set")
+	}
+	if !uuidPattern.MatchString(rid) {
+		t.Fatalf("X-Request-ID %q is not a valid UUID v4", rid)
+	}
+}
+
+func TestHealth_RequestIDPropagated(t *testing.T) {
+	const incoming = "test-trace-id-12345"
+	router := handler.NewRouter(&mockPinger{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+	req.Header.Set("X-Request-ID", incoming)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rid := rec.Header().Get("X-Request-ID"); rid != incoming {
+		t.Fatalf("X-Request-ID %q, want %q", rid, incoming)
 	}
 }
 
